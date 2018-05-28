@@ -9,8 +9,9 @@ env | grep "^HTTP"
 
 if [[ -p /dev/stdin ]]; then ## -p : file is a pipe
   printf "found stdin \n"
-  printf "input:$(cat -)\n"
-  
+  cat -
+
+  echo
 
 fi
 
