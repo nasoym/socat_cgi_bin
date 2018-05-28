@@ -6,6 +6,16 @@ printf "hello world\n"
 
 env | grep "^HTTP"
 
+  if [[ -s /dev/stdin ]]
+  then
+      echo "Stream stdin is coming from a pipe" >&2
+      printf "found stdin \n"
+      # cat
+      # read b < "${1:-/dev/stdin}"
+      # echo "$b"
+      cat /dev/fd/0
+
+  fi
 
 if [[ -p /dev/stdin ]]; then ## -p : file is a pipe
   printf "found stdin \n"

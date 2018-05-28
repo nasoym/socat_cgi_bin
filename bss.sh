@@ -50,6 +50,24 @@ function defaultHeaders() {
 export -f defaultHeaders
 
 function handle() {
+
+  if [[ -p /dev/stdin ]]
+  then
+      echo "stdin is coming from a pipe" >&2
+  fi
+  if [[ -s /dev/stdin ]]
+  then
+      echo "Stream stdin is coming from a pipe" >&2
+  fi
+  if [[ -t 0 ]]
+  then
+      echo "stdin is coming from the terminal" >&2
+  fi
+  if [[ ! -t 0 && ! -p /dev/stdin ]]
+  then
+      echo "stdin is redirected" >&2
+  fi
+
   read -r REQUEST_METHOD REQUEST_URI SERVER_PROTOCOL
   export REQUEST_METHOD REQUEST_URI SERVER_PROTOCOL
 
@@ -62,26 +80,47 @@ function handle() {
     export HTTP_${header_key}="${header_value}"
   done
   if [[ -n "${HTTP_CONTENT_LENGTH:-""}" ]] && [[ "${HTTP_CONTENT_LENGTH:-0}" -gt "0" ]];then
-    read -r -d '' -n "${HTTP_CONTENT_LENGTH}" request_content
+    # read -r -d '' -n "${HTTP_CONTENT_LENGTH}" request_content
+    :
   fi
   export SCRIPT_NAME="${REQUEST_URI/%\?*/}"
   if [[ "${REQUEST_URI}" =~ \? ]]; then
     export QUERY_STRING="${REQUEST_URI#*\?}"
   fi
-
-  echo "request: ${SOCAT_PEERADDR}:${SOCAT_PEERPORT} ${REQUEST_METHOD} ${REQUEST_URI} ${SCRIPT_NAME}" >&2
   if [[ -x "${ROUTES_PATH}/${SCRIPT_NAME}" ]];then
     echo "HTTP/1.0 200 OK"
     defaultHeaders
+
+
+  if [[ -p /dev/stdin ]]
+  then
+      echo "stdin is coming from a pipe" >&2
+  fi
+  if [[ -s /dev/stdin ]]
+  then
+      echo "Stream stdin is coming from a pipe" >&2
+  fi
+  if [[ -t 0 ]]
+  then
+      echo "stdin is coming from the terminal" >&2
+  fi
+  if [[ ! -t 0 && ! -p /dev/stdin ]]
+  then
+      echo "stdin is redirected" >&2
+  fi
+
+
     if [[ -n "${request_content:-""}" ]];then
       echo "$request_content" | ${ROUTES_PATH}/${SCRIPT_NAME}
     else
       ${ROUTES_PATH}/${SCRIPT_NAME}
     fi
+    echo "$(date +%FT%T) ${SOCAT_PEERADDR}:${SOCAT_PEERPORT} ${REQUEST_METHOD} ${REQUEST_URI} ${SCRIPT_NAME} 200" >&2
   else
     echo "HTTP/1.0 404 Not Found"
     defaultHeaders
     echo ""
+    echo "$(date +%FT%T) ${SOCAT_PEERADDR}:${SOCAT_PEERPORT} ${REQUEST_METHOD} ${REQUEST_URI} ${SCRIPT_NAME} 404" >&2
   fi
 }
 export -f handle
