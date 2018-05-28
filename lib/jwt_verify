@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+
+set -ef -o pipefail
+
+function jwt_verify() {
+  jwt="$1"
+  public_key_file="$2"
+
+  if [[ -z "$jwt" ]];then
+    log "empty jwt"
+    return 1
+  fi
+
+  header_and_claims="${jwt%.*}"
+  signature_base64="${jwt##*.}"
+
+  header_base64="${header_and_claims%.*}"
+  claims_base64="${header_and_claims#*.}"
+  header="$(echo -n "${header_base64}$(printf '=%.0s' $(seq 1 $(( 4 - (${#header_base64} % 4)))))" \
+    | tr '\-' '+' \
+    | tr '_' '/' \
+    | base64 -d)"
+  claims="$(echo -n "${claims_base64}$(printf '=%.0s' $(seq 1 $(( 4 - (${#claims_base64} % 4)))))" \
+    | tr '\-' '+' \
+    | tr '_' '/' \
+    | base64 -d)"
+
+  if [[ "$VERBOSE_LOGGING" = 1 ]];then
+    log "header:$header"
+    log "claims:$claims"
+  fi
+
+  jq -M -e '.alg|test("rs256";"i")' <<<"$header" >/dev/null || { log "alg is not RS256"; return 1; }
+
+
+if [[ -n "$PUBLIC_KEY" ]];then
+  echo -n "${header_and_claims}" \
+    | openssl sha \
+      -sha256 \
+      -verify <(echo -e "$PUBLIC_KEY") \
+      -signature <(echo -n "${signature_base64}$(printf '=%.0s' $(seq 1 $(( 4 - (${#signature_base64} % 4)))))" \
+      | tr '\-' '+' \
+      | tr '_' '/' \
+      | base64 -d) \
+      >/dev/null \
+    || { log "jwt verification failed"; return 1; }
+
+else
+  [[ ! -r "$public_key_file" ]] && { log "public_key_file: ${public_key_file} is not readable"; return 1; }
+  echo -n "${header_and_claims}" \
+    | openssl sha \
+      -sha256 \
+      -verify ${public_key_file} \
+      -signature <(echo -n "${signature_base64}$(printf '=%.0s' $(seq 1 $(( 4 - (${#signature_base64} % 4)))))" \
+      | tr '\-' '+' \
+      | tr '_' '/' \
+      | base64 -d) \
+      >/dev/null \
+    || { log "jwt verification failed"; return 1; }
+fi
+
+
+}

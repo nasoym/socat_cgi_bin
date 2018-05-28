@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+function log() {
+  echo "$(date +%FT%T) $(date +%s) $$ $@" >&2
+}
+export -f log
+
+

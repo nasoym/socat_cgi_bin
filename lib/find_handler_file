@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+function find_handler_file() {
+  request_path="$1"
+
+  request_path_segment="${request_path}"
+  until [[ -z "$request_path_segment" ]] ; do
+    if [[ -f "${ROUTES_PATH}${request_path_segment}" ]];then
+      matching_route_file="${ROUTES_PATH}${request_path_segment}"
+      export request_subpath="${request_path/#$request_path_segment/}"
+      break
+    fi
+    if [[ "${request_path_segment}" =~ /$ ]];then
+      request_path_segment="${request_path_segment/%\//}"
+    else
+      request_path_segment="$(dirname $request_path_segment)"
+    fi
+  done
+  unset request_path_segment
+
+  if [[ -z "$matching_route_file" ]];then
+      if [[ -f "${DEFAULT_ROUTE_HANDLER}" ]]; then
+        matching_route_file="${DEFAULT_ROUTE_HANDLER}"
+      elif [[ -f "${ROUTES_PATH}/${DEFAULT_ROUTE_HANDLER}" ]]; then
+        matching_route_file="${ROUTES_PATH}/${DEFAULT_ROUTE_HANDLER}"
+      fi
+  fi
+
+  # echo "$matching_route_file"
+  export "request_matching_route_file"="$matching_route_file"
+}
+
