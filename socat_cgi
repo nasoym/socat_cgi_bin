@@ -49,6 +49,7 @@ function defaultHeaders() {
   echo "Connection: close"
   echo "Cache-Control: no-cache, no-store, must-revalidate"
   echo "Pragma: no-cache"
+  echo "Access-Control-Allow-Origin: *"
 }
 export -f defaultHeaders
 
