@@ -13,57 +13,51 @@ if [[ "${trace:=0}" -eq 1 ]];then
   export trace
 fi
 
-source $(dirname $0)/lib/logger
-source $(dirname $0)/lib/http_helpers
-source $(dirname $0)/lib/parse_request
-source $(dirname $0)/lib/find_handler_file
-source $(dirname $0)/lib/jwt_verify
-
 : ${ROUTES_PATH:="$(dirname $0)/handlers"}
 : ${DEFAULT_ROUTE_HANDLER:="${ROUTES_PATH}/default"}
-: ${AUTHENTICATE:="1"}
-: ${VERBOSE_LOGGING:="0"}
-export VERBOSE_LOGGING="$VERBOSE_LOGGING"
 
-parse_request
-log "request: ${SOCAT_PEERADDR}:${SOCAT_PEERPORT} ${request_method} ${request_uri}"
+function upper() { echo "$@" | tr '[:lower:]' '[:upper:]'; }
+function lower() { echo "$@" | tr '[:upper:]' '[:lower:]'; }
 
-if [[ "$AUTHENTICATE" = 1 ]];then
-  if [[ -z "$request_header_authorization" ]];then
-    authorization_token="$( echo "$request_header_cookie" \
-      | sed -e 's/; */\n/g' \
-      | awk -F '=' '{if ($1=="authentication") {print $2}}' )"
-  else
-    authorization_token="${request_header_authorization#* }"
-  fi
-  public_key_file="public_keys/public_key"
-  if ! jwt_verify "$authorization_token" $public_key_file; then
-    log "jwt signature failed"
-    echo_response_status_line 401 "Unauthorized"
-    echo_response_default_headers
-    echo -e "\r"
-    exit 0
-  fi
+function defaultHeaders() {
+  echo -e "Date: $(date -u "+%a, %d %b %Y %T GMT")\r"
+  echo -e "Expires: 0\r"
+  echo -e "Connection: close\r"
+  echo -e "Cache-Control: no-cache, no-store, must-revalidate\r"
+  echo -e "Pragma: no-cache\r"
+}
+
+read -r REQUEST_METHOD REQUEST_URI SERVER_PROTOCOL
+export REQUEST_METHOD REQUEST_URI SERVER_PROTOCOL
+
+while read -r line; do 
+  line="$(echo "$line" | tr -d '\r')"
+  [[ "$line" =~ ^$ ]] && { break; } 
+  header_key="${line/%: */}"
+  header_key="$(upper ${header_key//-/_} )"
+  header_value="${line/#*: /}"
+  export HTTP_${header_key}="${header_value}"
+done
+if [[ -n "${HTTP_CONTENT_LENGTH:-""}" ]] && [[ "${HTTP_CONTENT_LENGTH:-0}" -gt "0" ]];then
+  read -r -d '' -n "${HTTP_CONTENT_LENGTH}" request_content
+fi
+export SCRIPT_NAME="${REQUEST_URI/%\?*/}"
+if [[ "${REQUEST_URI}" =~ \? ]]; then
+  export QUERY_STRING="${REQUEST_URI#*\?}"
 fi
 
-find_handler_file $request_path
-
-if [[ -n "$request_matching_route_file" ]];then
-  RESPONSE_CONTENT="$(echo "$request_content" | $request_matching_route_file $(urldecode ${request_subpath//\// }))"
-  if [[ $? -eq 1 ]];then
-    echo_response_status_line 500 "Internal Server Error"
-    echo_response_default_headers
-    echo -e "\r"
+echo "request: ${SOCAT_PEERADDR}:${SOCAT_PEERPORT} ${REQUEST_METHOD} ${REQUEST_URI} ${SCRIPT_NAME}" >&2
+if [[ -x "${ROUTES_PATH}/${SCRIPT_NAME}" ]];then
+  echo -e "HTTP/1.0 200 OK\r"
+  defaultHeaders
+  if [[ -n "${request_content:-""}" ]];then
+    echo "$request_content" | ${ROUTES_PATH}/${SCRIPT_NAME}
   else
-    if [[ "$RESPONSE_CONTENT" =~ ^HTTP\/[0-9]+\.[0-9]+\ [0-9]+ ]];then
-      echo "${RESPONSE_CONTENT}"
-    else
-      echo "${RESPONSE_CONTENT}" | echo_content_response
-    fi
+    ${ROUTES_PATH}/${SCRIPT_NAME}
   fi
 else
-  echo_response_status_line 404 "Not Found"
-  echo_response_default_headers
+  echo -e "HTTP/1.0 404 Not Found\r"
+  defaultHeaders
   echo -e "\r"
 fi
 
