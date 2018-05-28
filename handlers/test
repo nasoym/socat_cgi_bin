@@ -1,28 +1,24 @@
 #!/usr/bin/env bash
 
+set -o errexit  # abort when any commands exits with error
+set -o pipefail # abort when any command in a pipe exits with error
+set -o nounset  # abort when any unset variable is used
+set -o errtrace # inherits trap on ERR in function and subshell
+set -f # prevent bash from expanding glob
+trap 'echo status:$? line:$LINENO line:$BASH_LINENO command:"$BASH_COMMAND" functions:$(printf " %s" ${FUNCNAME[@]:-})' ERR
+
 printf "Content-type: text/plain; charset=iso-8859-1\n\n"
 
 printf "hello world\n"
 
+echo "${QUERY_STRING:-""}"
+echo "${REQUEST_URI:-""}"
 env | grep "^HTTP"
 
-  if [[ -s /dev/stdin ]]
-  then
-      echo "Stream stdin is coming from a pipe" >&2
-      printf "found stdin \n"
-      # cat
-      # read b < "${1:-/dev/stdin}"
-      # echo "$b"
-      cat /dev/fd/0
-
-  fi
-
-if [[ -p /dev/stdin ]]; then ## -p : file is a pipe
-  printf "found stdin \n"
-  cat -
-
-  echo
-
+if [[ -p /dev/stdin ]]
+then
+    cat - | sed -e 's/^/---/g' -e 's/$/---/g'
 fi
+
 
 
