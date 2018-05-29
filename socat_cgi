@@ -23,25 +23,20 @@ esac; done; shift $(( OPTIND - 1 ))
 
 : ${port:="8080"}
 : ${socat_options:="-T60"}
-
+: ${default_header_command:="defaultHeaders"}; export default_header_command
 
 if [[ -z "${cgi_path:-""}" ]]; then
   if [[ -n "$@" ]] && [[ -d "$@" ]];then
     : ${cgi_path:="$@"}
   elif [[ -n "$@" ]] && [[ -d "$(pwd)/$@" ]];then
     : ${cgi_path:="$(pwd)/$@"}
-  elif [[ -d "$(pwd)/handlers" ]];then
-    : ${cgi_path:="$(pwd)/handlers"}
-  elif [[ -d "${self}/handlers" ]];then
-    : ${cgi_path:="${self}/handlers"}
+  elif [[ -d "$(pwd)/cgi-bin" ]];then
+    : ${cgi_path:="$(pwd)/cgi-bin"}
+  elif [[ -d "${self}/cgi-bin" ]];then
+    : ${cgi_path:="${self}/cgi-bin"}
   fi
 fi
 export cgi_path
-
-function upper() { echo "$@" | tr '[:lower:]' '[:upper:]'; }
-export -f upper
-function lower() { echo "$@" | tr '[:upper:]' '[:lower:]'; }
-export -f lower
 
 function defaultHeaders() {
   echo "Date: $(date -u "+%a, %d %b %Y %T GMT")"
@@ -53,6 +48,17 @@ function defaultHeaders() {
 }
 export -f defaultHeaders
 
+function script_failure() {
+  echo "HTTP/1.0 500 Failure"
+  ${default_header_command}
+  printf "Content-type: text/plain; charset=iso-8859-1\n\n"
+  printf "Script Failure\n"
+  echo "${response}" | sed -e 's/^/stdout: /g'
+  echo "${log_line} 500" >&2
+  exit 0
+}
+export -f script_failure
+
 function handle() {
   read -r REQUEST_METHOD REQUEST_URI SERVER_PROTOCOL
   export REQUEST_METHOD REQUEST_URI SERVER_PROTOCOL
@@ -60,7 +66,7 @@ function handle() {
     line="$(echo "$line" | tr -d '\r')"
     [[ "$line" =~ ^$ ]] && { break; } 
     header_key="${line/%: */}"
-    header_key="$(upper ${header_key//-/_} )"
+    header_key="$(tr '[:lower:]' '[:upper:]' <<<"${header_key//-/_}" )"
     header_value="${line/#*: /}"
     export HTTP_${header_key}="${header_value}"
   done
@@ -70,24 +76,25 @@ function handle() {
   fi
   local log_line="$(date +%FT%T) ${SOCAT_PEERADDR}:${SOCAT_PEERPORT} ${REQUEST_METHOD} ${REQUEST_URI} ${SCRIPT_NAME}"
   if [[ -x "${cgi_path}/${SCRIPT_NAME}" ]];then
-    echo "HTTP/1.0 200 OK"
-    defaultHeaders
     if [[ -n "${HTTP_CONTENT_LENGTH:-""}" ]] && [[ "${HTTP_CONTENT_LENGTH:-0}" -gt "0" ]];then
       read -r -d '' -n "${HTTP_CONTENT_LENGTH}" request_content
-      echo "${request_content}" | ${cgi_path}/${SCRIPT_NAME}
+      response="$(echo "${request_content}" | ${cgi_path}/${SCRIPT_NAME})" || script_failure
     else
-      ${cgi_path}/${SCRIPT_NAME}
+      response="$(${cgi_path}/${SCRIPT_NAME})" || script_failure
     fi
+    echo "HTTP/1.0 200 OK"
+    ${default_header_command}
+    echo "${response}"
     echo "${log_line} 200" >&2
   elif [[ -f "${cgi_path}/${SCRIPT_NAME}" ]];then
     echo "HTTP/1.0 200 OK"
-    defaultHeaders
+    ${default_header_command}
     echo ""
     cat ${cgi_path}/${SCRIPT_NAME}
     echo "${log_line} 200" >&2
   else
     echo "HTTP/1.0 404 Not Found"
-    defaultHeaders
+    ${default_header_command}
     echo ""
     echo "${log_line} 404" >&2
   fi
