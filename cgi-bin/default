@@ -9,25 +9,5 @@ trap 'echo status:$? line:$LINENO line:$BASH_LINENO command:"$BASH_COMMAND" func
 
 printf "Content-type: text/plain; charset=iso-8859-1\n\n"
 
-echo "query:${QUERY_STRING:-""}"
-echo "uri:${REQUEST_URI:-""}"
-echo "method:${REQUEST_METHOD:-""}"
-env | grep "^HTTP"
-
-echo "query:${QUERY_STRING:-""}" >&2
-echo "uri:${REQUEST_URI:-""}" >&2
-echo "method:${REQUEST_METHOD:-""}" >&2
-env | grep "^HTTP" >&2
-
-if [[ -p /dev/stdin ]]; then
-  input="$(cat - )"
-  echo "BODY:"
-  echo "$input"
-  echo "BODY:" >&2
-  echo "$input" >&2
-fi
-
-
-
-
+printf "default script\n"
 

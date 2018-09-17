@@ -1,0 +1,33 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta name="generator" content="HTML Tidy for Mac OS X (vers 31 October 2006 - Apple Inc. build 15.17), see www.w3.org"/>
+  <title></title>
+  <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+</head>
+<body>
+
+<form>
+  <input type="submit" value="Submit" onclick="call();">
+</form>
+
+</body>
+<script type="application/javascript">
+  function call() {
+    var foo = { a:4};
+    $.ajax({
+       method: "POST",
+       contentType: "application/json",
+       url: "/echo",
+       data: JSON.stringify(foo || {}),
+       success: function (data, textStatus, jqXHR) {
+         console.log("get user access: ", data)
+       },
+       error: function (jqXHR, textStatus, errorThrown) {
+         console.error("get user access failed: ", textStatus, errorThrown, jqXHR.status);
+       }
+     });
+
+  };
+</script>
+</html>

@@ -24,6 +24,7 @@ esac; done; shift $(( OPTIND - 1 ))
 : ${port:="8080"}
 : ${socat_options:="-T60"}
 : ${default_header_command:="defaultHeaders"}; export default_header_command
+: ${default_script:="default"}; export default_script
 
 if [[ -z "${cgi_path:-""}" ]]; then
   if [[ -n "$@" ]] && [[ -d "$@" ]];then
@@ -75,6 +76,10 @@ function handle() {
     export QUERY_STRING="${REQUEST_URI#*\?}"
   fi
   local log_line="$(date +%FT%T) ${SOCAT_PEERADDR}:${SOCAT_PEERPORT} ${REQUEST_METHOD} ${REQUEST_URI} ${SCRIPT_NAME}"
+  if [[ "${REQUEST_URI}" == "/" ]];then
+    SCRIPT_NAME="${default_script}"
+  fi
+
   if [[ -x "${cgi_path}/${SCRIPT_NAME}" ]];then
     if [[ -n "${HTTP_CONTENT_LENGTH:-""}" ]] && [[ "${HTTP_CONTENT_LENGTH:-0}" -gt "0" ]];then
       read -r -d '' -n "${HTTP_CONTENT_LENGTH}" request_content
