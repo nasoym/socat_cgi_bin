@@ -106,5 +106,13 @@ function handle() {
 }
 export -f handle
 
-socat ${socat_options} TCP-LISTEN:${port},reuseaddr,fork SYSTEM:handle
+# socat ${socat_options} TCP-LISTEN:${port},reuseaddr,fork SYSTEM:handle
+socat ${socat_options} TCP-LISTEN:${port},reuseaddr,fork EXEC:"/bin/bash -c handle"
+
+# socat ${socat_options} TCP-LISTEN:${port},reuseaddr,fork EXEC:env
+# socat ${socat_options} TCP-LISTEN:${port},reuseaddr,fork EXEC:handle
+# socat ${socat_options} TCP-LISTEN:${port},reuseaddr,fork SYSTEM:handle
+# socat ${socat_options} TCP-LISTEN:${port},reuseaddr,fork SYSTEM:env
+
+
 
