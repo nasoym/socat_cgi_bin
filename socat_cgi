@@ -69,7 +69,8 @@ function handle() {
     header_key="${line/%: */}"
     header_key="$(tr '[:lower:]' '[:upper:]' <<<"${header_key//-/_}" )"
     header_value="${line/#*: /}"
-    export HTTP_${header_key}="${header_value}"
+    header_variable="HTTP_${header_key}"
+    export HTTP_${header_key}="${!header_variable:+"${!header_variable} "}${header_value}"
   done
   export SCRIPT_NAME="${REQUEST_URI/%\?*/}"
   if [[ "${REQUEST_URI}" =~ \? ]]; then
